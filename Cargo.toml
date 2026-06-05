@@ -1,0 +1,6 @@
+[package]
+name = "ternary-jam"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Musical jam session as multi-agent coordination in ternary state spaces"
