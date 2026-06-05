@@ -1,81 +1,85 @@
-# ternary-jam: Musical jam session as multi-agent coordination
+# ternary-jam
 
-Musical jam session where agents improvise, compete for harmonic space, and cooperate to create consonance — all within a ternary ({-1, 0, +1}) harmonic framework. The jam session IS the arena.
+**A jam session in code. Agents that improvise, listen, respond, and surprise you.**
 
-## Why This Exists
+A jam session isn't rehearsed. It's not scripted. Someone plays something, someone else responds, the energy builds, the room finds a groove, and for a few minutes everyone is thinking the same thought at the same time. Then it dissolves, reforms, goes somewhere new.
 
-In the SuperInstance fleet, agents need to coordinate without a central planner telling every agent exactly what to do. A musical jam session is a natural metaphor: musicians listen to each other, respect rules (counterpoint), and collectively create something none could alone. This crate models that coordination pattern using ternary states, where each agent's "note" is a choice between Flat, Rest, and Sharp.
+This crate models that. Multiple ternary agents sit in a room. Each one has an instrument (a strategy for generating ternary values). They can hear each other. They respond to what they hear. Sometimes they lead, sometimes they follow. Sometimes they play something unexpected and everyone adjusts.
 
-## Core Concepts
+The `JamSession` is the room. The `Player` is each musician. The `energy` is the vibe — high energy means everyone's playing hard, low energy means they're listening. The `calls` and `responses` are the musical conversation.
 
-- **TernaryNote**: A musical value in {-1, 0, +1}. Flat (-1) = tension/pull, Rest (0) = silence, Sharp (+1) = resolution/push.
-- **Voice**: An agent's musical role — has a tendency (bias toward a ternary value) and a sequence of notes to play.
-- **ChordProgression**: The harmonic context — a repeating sequence of ternary chords that frames the improvisation.
-- **ImprovRule**: Species counterpoint constraints — Parallel (same direction), Contrary (opposite), Free (no constraint), Resolve (toward rest).
-- **JamSync**: Tempo synchronization — beats per measure, ticks per beat, keeps all agents on the same timeline.
-- **JamSession**: The arena — coordinates voices, progression, and sync into a unified performance with dissonance/consonance scoring.
-- **JamMix**: Mixes multiple voices into a single output stream using weighted combination, unanimous agreement, or majority vote.
+## What's Inside
 
-## Quick Start
+- **`JamSession`** — the room. Manages players, rounds, energy tracking, and history
+- **`Player`** — a musician with a strategy, energy level, and response tendency
+- **`jam_round(session)`** — one round of the jam. Each player responds to the previous round
+- **`call_and_response(caller, responder, history)`** — the fundamental musical conversation. One player calls, the other responds
+- **`energy_level(session)`** — measure the room's energy. High = lots of ±1 activity, low = lots of 0
+- **`groove_detector(history)`** — has the room found a repeating pattern? Is there a groove?
+- **`surprise_score(play, expected)`** — how unexpected was this play? Surprise drives musical interest
+- **`trade_fours(players, rounds)`** — jazz tradition: players take 4-bar solos in turn
 
-```toml
-[dependencies]
-ternary-jam = "0.1"
-```
+## Quick Example
 
 ```rust
 use ternary_jam::*;
 
-let progression = ChordProgression::new(vec![[1, 0, -1], [0, 1, 0]]);
-let sync = JamSync::new(4, 4);
-let mut session = JamSession::new(progression, sync);
+// Set up a jam with 4 players
+let mut session = JamSession::new(4);
 
-let mut voice = Voice::new(0, 1);
-voice.add_note(TernaryNote::Sharp);
-voice.add_note(TernaryNote::Rest);
-voice.add_note(TernaryNote::Flat);
-session.add_voice(voice, ImprovRule::Free);
+// Player 0 leads with a pattern
+session.set_lead(0, vec![1, 0, -1, 0, 1, 0, -1, 0]);
 
-let output = session.run(16);
-println!("Output: {:?}", output);
-println!("Harmony score: {}", session.harmony_score());
+// Run 16 rounds of improvisation
+for _ in 0..16 {
+    jam_round(&mut session);
+}
+
+// Check the energy
+let energy = energy_level(&session);
+println!("Room energy: {:.2}", energy);
+// High energy = everyone's playing. Low = they're listening.
+
+// Detect if a groove emerged
+if let Some(pattern) = groove_detector(&session.history) {
+    println!("Found a groove! Pattern: {:?}", pattern);
+}
+
+// Trade fours: players take turns soloing
+let solos = trade_fours(&session.players, 4);
+// Player 0 solos for 4 bars, then player 1, then player 2, etc.
 ```
 
-## API Overview
+## The Deeper Truth
 
-| Type | Description |
-|------|-------------|
-| `TernaryNote` | A single ternary musical value: Flat, Rest, or Sharp |
-| `Voice` | An agent's musical role with note sequence and tendency |
-| `ChordProgression` | Cycling sequence of ternary chords providing harmonic context |
-| `ImprovRule` | Counterpoint constraint for improvisation (Parallel, Contrary, Free, Resolve) |
-| `JamSync` | Beat/tick synchronization across agents |
-| `JamSession` | The coordinated performance arena combining all elements |
-| `JamMix` | Mixer combining multiple voice outputs into one stream |
+**Jamming is the hardest thing to model in music AI.** It requires listening (processing other players' output), taste (knowing what to play in response), restraint (not playing too much), and surprise (doing the unexpected at the right moment). In ternary, all of this reduces to a sequence of {-1, 0, +1} values — but the *meaning* of each value depends on context. A +1 after a long stretch of 0s is a shout. The same +1 in a wall of +1s is just noise.
 
-## How It Works
+The energy level captures this: it's not just "how many non-zero values" but "how much has the activity *changed* from the previous round." A sudden burst of activity after calm = energy spike. Gradual building = energy rise. The energy curve IS the emotional arc of the jam.
 
-Each tick, the JamSession advances its sync clock. On beat boundaries, the chord progression advances. Each voice either plays its next queued note or improvises one using its assigned ImprovRule applied to the previous note and the voice's tendency. All voices are mixed (summed, then clamped to {-1, 0, +1}). Pairwise dissonance between voices is tracked — Sharp and Flat sounding simultaneously is dissonant, matching values are consonant.
+The groove detector looks for periodicity in the collective output. When all players lock into a repeating pattern — even a simple one like [1, 0, -1, 0] — that's a groove. It's the ternary equivalent of a rhythm section locking in. The groove can be stable (everyone keeps it) or unstable (it dissolves after a few rounds). The most interesting jams have unstable grooves that form, dissolve, and reform in new shapes.
 
-The improvisation rules implement simplified species counterpoint: Parallel motion encourages continuation, Contrary forces opposition, and Resolve pushes toward the rest state. This creates emergent harmonic behavior from simple local rules.
+**Use cases:**
+- **Generative music** — create evolving, responsive compositions
+- **Game audio** — background music that responds to gameplay energy
+- **AI music research** — model improvisation and musical conversation
+- **Education** — teach improvisation concepts through simulation
+- **Live performance** — let the code jam with human musicians
 
-## Known Limitations
+## See Also
 
-- The mixing strategy is naive (simple summation + clamp). A weighted energy-preserving mix would be more musically accurate.
-- Dissonance scoring is binary (dissonant or not) — real harmony has degrees of dissonance.
-- No notion of key or scale beyond the ternary abstraction; mapping to actual pitches is outside scope.
-- The ImprovRule system is stateless per-tick and doesn't consider longer-range musical structure.
+- **ternary-rhythm** — rhythm patterns that players use
+- **ternary-phase** — phase alignment between players in a jam
+- **ternary-polyrhythm** — multiple players with different pulse rates
+- **ternary-sync** — Z₃ synchronization (when the jam locks in)
+- **ternary-muse** — creative inspiration for generating musical ideas
+- **ternary-ear** — ear training (teaching agents to listen better)
+- **ternary-kuramoto** — what happens when jamming fails to synchronize
 
-## Use Cases
+## Install
 
-- **Multi-agent coordination testbed**: Model resource competition where agents choose between three states and must harmonize.
-- **Game AI behavior blending**: Multiple AI subsystems (attack, defend, idle) as voices in a jam, mixed into a single action.
-- **Consensus visualization**: Watch agents converge or diverge in real-time through harmony scoring.
-- **Creative ternary exploration**: Generate ternary sequences with musical structure for artistic or research purposes.
-
-## Ecosystem Context
-
-Part of the SuperInstance ternary crate family. Related to `ternary-music` (musical theory foundations) and `ternary-rhythm` (temporal patterns). This crate focuses on the multi-agent coordination aspect — the jam as an arena for emergent behavior.
+```bash
+cargo add ternary-jam
+```
 
 ## License
 
